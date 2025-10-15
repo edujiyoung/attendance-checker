@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="연수 출석">
+<link rel="icon" sizes="192x192" href="icon-192.png"> <link rel="apple-touch-icon" href="icon-192.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>연수 출석 체크 시스템</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            border: none;
+            background: none;
+            font-size: 16px;
+        }
+        
+        .tab:hover {
+            background: #e9ecef;
+        }
+        
+        .tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .control-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .control-panel label {
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .control-panel select {
+            padding: 10px 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        .teacher-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .teacher-card {
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .teacher-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .teacher-card.present {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+        
+        .teacher-card.absent {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+        
+        .teacher-card .name {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #212529;
+        }
+        
+        .teacher-card .status {
+            font-size: 14px;
+            color: #6c757d;
+        }
+        
+        .teacher-card.present .status {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .teacher-card.absent .status {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        
+        .summary {
+            background: #e7f3ff;
+            border: 2px solid #0066cc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .summary-item {
+            text-align: center;
+        }
+        
+        .summary-item .label {
+            font-size: 14px;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+        
+        .summary-item .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #0066cc;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+        
+        .attendance-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        
+        .attendance-table th,
+        .attendance-table td {
+            border: 1px solid #dee2e6;
+            padding: 12px;
+            text-align: center;
+        }
+        
+        .attendance-table th {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .attendance-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .attendance-table tr:hover {
+            background: #e9ecef;
+        }
+        
+        .status-present {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .status-absent {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .teacher-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .teacher-tag {
+            background: #e7f3ff;
+            border: 1px solid #0066cc;
+            padding: 8px 15px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .teacher-tag button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            line-height: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎓 연수 출석 체크 시스템</h1>
+            <p>간편하고 정확한 출석 관리</p>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('attendance')">출석 체크</button>
+            <button class="tab" onclick="showTab('status')">출석 현황</button>
+            <button class="tab" onclick="showTab('settings')">설정</button>
+        </div>
+        
+        <div class="content">
+            <div id="attendance" class="tab-content active">
+                <div class="control-panel">
+                    <div>
+                        <label>날짜:</label>
+<input type="date" id="daySelect" onchange="updateAttendance()">
+                    </div>
+                    <div>
+                        <label>교시:</label>
+                        <select id="periodSelect" onchange="updateAttendance()">
+                            <option value="1">1교시</option>
+                            <option value="2">2교시</option>
+                            <option value="3">3교시</option>
+                            <option value="4">4교시</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="summary">
+                    <div class="summary-item">
+                        <div class="label">출석</div>
+                        <div class="value" id="presentCount">0</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="label">결석</div>
+                        <div class="value" id="absentCount" style="color: #dc3545;">0</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="label">미체크</div>
+                        <div class="value" id="uncheckedCount" style="color: #ffc107;">18</div>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-success" onclick="markAllPresent()">✓ 전체 출석</button>
+                    <button class="btn btn-danger" onclick="markAllAbsent()">✗ 전체 결석</button>
+                    <button class="btn btn-warning" onclick="clearCurrentPeriod()">🔄 현재 교시 초기화</button>
+                </div>
+                
+                <div class="teacher-grid" id="teacherGrid"></div>
+            </div>
+            
+            <div id="status" class="tab-content">
+                <div style="margin-bottom: 20px;">
+                    <button class="btn btn-success" onclick="exportToExcel()">📊 엑셀 다운로드</button>
+                </div>
+                
+                <div id="statusTable"></div>
+            </div>
+            
+            <div id="settings" class="tab-content">
+                <h2 style="margin-bottom: 20px;">교사 명단 관리</h2>
+                
+                <div class="input-group">
+                    <label>교사 이름 추가:</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="newTeacherName" placeholder="교사 이름을 입력하세요">
+                        <button class="btn btn-primary" onclick="addTeacher()">추가</button>
+                    </div>
+                </div>
+                
+                <div class="teacher-list" id="teacherList"></div>
+                
+                <div style="margin-top: 30px; padding-top: 30px; border-top: 2px solid #dee2e6;">
+                    <h3 style="margin-bottom: 15px;">교사 이름 수정</h3>
+                    <div class="input-group">
+                        <label>수정할 교사 선택:</label>
+                        <select id="editTeacherSelect" style="width: 100%; padding: 10px; border: 2px solid #dee2e6; border-radius: 8px; font-size: 16px;">
+                            <option value="">-- 교사를 선택하세요 --</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>새 이름:</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="editTeacherName" placeholder="새 이름을 입력하세요">
+                            <button class="btn btn-primary" onclick="editTeacher()">수정</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 30px; padding-top: 30px; border-top: 2px solid #dee2e6;">
+                    <button class="btn btn-danger" onclick="resetAllData()">
+                        🔄 모든 데이터 초기화
+                    </button>
+                    <p style="margin-top: 10px; color: #6c757d; font-size: 14px;">
+                        ⚠️ 모든 출석 데이터가 삭제됩니다. 신중하게 사용하세요.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let teachers = [];
+        let attendanceData = {};
+
+        function initializeData() {
+            const savedTeachers = JSON.parse(localStorage.getItem('teachers') || '[]');
+            if (savedTeachers.length > 0) {
+                teachers = savedTeachers;
+            } else {
+                teachers = Array.from({length: 18}, (_, i) => `교사${i + 1}`);
+                saveTeachers();
+            }
+            
+            const savedAttendance = localStorage.getItem('attendanceData');
+            if (savedAttendance) {
+                attendanceData = JSON.parse(savedAttendance);
+            } else {
+                attendanceData = {};
+            }
+        }
+
+        function saveTeachers() {
+            localStorage.setItem('teachers', JSON.stringify(teachers));
+        }
+
+        function saveAttendance() {
+            localStorage.setItem('attendanceData', JSON.stringify(attendanceData));
+        }
+
+        function getAttendanceKey() {
+            const day = document.getElementById('daySelect').value;
+            const period = document.getElementById('periodSelect').value;
+            return `day${day}_period${period}`;
+        }
+
+        function toggleAttendance(teacherName) {
+            const key = getAttendanceKey();
+            if (!attendanceData[key]) {
+                attendanceData[key] = {};
+            }
+            
+            if (attendanceData[key][teacherName] === 'present') {
+                attendanceData[key][teacherName] = 'absent';
+            } else if (attendanceData[key][teacherName] === 'absent') {
+                delete attendanceData[key][teacherName];
+            } else {
+                attendanceData[key][teacherName] = 'present';
+            }
+            
+            saveAttendance();
+            updateAttendance();
+        }
+
+        function updateAttendance() {
+            const key = getAttendanceKey();
+            const grid = document.getElementById('teacherGrid');
+            grid.innerHTML = '';
+            
+            let presentCount = 0;
+            let absentCount = 0;
+            let uncheckedCount = 0;
+            
+            teachers.forEach(teacher => {
+                const card = document.createElement('div');
+                card.className = 'teacher-card';
+                
+                const status = attendanceData[key]?.[teacher];
+                if (status === 'present') {
+                    card.classList.add('present');
+                    presentCount++;
+                } else if (status === 'absent') {
+                    card.classList.add('absent');
+                    absentCount++;
+                } else {
+                    uncheckedCount++;
+                }
+                
+                card.innerHTML = `
+                    <div class="name">${teacher}</div>
+                    <div class="status">
+                        ${status === 'present' ? '✓ 출석' : status === 'absent' ? '✗ 결석' : '미체크'}
+                    </div>
+                `;
+                
+                card.onclick = () => toggleAttendance(teacher);
+                grid.appendChild(card);
+            });
+            
+            document.getElementById('presentCount').textContent = presentCount;
+            document.getElementById('absentCount').textContent = absentCount;
+            document.getElementById('uncheckedCount').textContent = uncheckedCount;
+        }
+
+        function markAllPresent() {
+            const key = getAttendanceKey();
+            if (!attendanceData[key]) {
+                attendanceData[key] = {};
+            }
+            
+            teachers.forEach(teacher => {
+                attendanceData[key][teacher] = 'present';
+            });
+            
+            saveAttendance();
+            updateAttendance();
+        }
+
+        function markAllAbsent() {
+            const key = getAttendanceKey();
+            if (!attendanceData[key]) {
+                attendanceData[key] = {};
+            }
+            
+            teachers.forEach(teacher => {
+                attendanceData[key][teacher] = 'absent';
+            });
+            
+            saveAttendance();
+            updateAttendance();
+        }
+
+        function clearCurrentPeriod() {
+            const day = document.getElementById('daySelect').value;
+            const period = document.getElementById('periodSelect').value;
+            
+            if (confirm(`${day}일차 ${period}교시의 출석 데이터를 모두 초기화하시겠습니까?`)) {
+                const key = getAttendanceKey();
+                delete attendanceData[key];
+                saveAttendance();
+                updateAttendance();
+                alert('초기화 완료!');
+            }
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+            
+            if (tabName === 'status') {
+                updateStatusTable();
+            } else if (tabName === 'settings') {
+                updateTeacherList();
+            }
+        }
+
+        
+function updateStatusTable() {
+    const table = document.getElementById('statusTable');
+    const allKeys = Object.keys(attendanceData || {});
+    // collect keys that match pattern day{date}_period{number}
+    const entries = allKeys.map(k => {
+        const m = k.match(/^day(.+)_period(\d+)$/);
+        if (m) return {date: m[1], period: Number(m[2]), key: k};
+        return null;
+    }).filter(Boolean);
+
+    if (entries.length === 0) {
+        table.innerHTML = '<p style="color: gray;">아직 저장된 출석 데이터가 없습니다.</p>';
+        return;
+    }
+
+    // group by date then sort by date and period
+    entries.sort((a,b) => {
+        if (a.date < b.date) return -1;
+        if (a.date > b.date) return 1;
+        return a.period - b.period;
+    });
+
+    // unique entries by date+period
+    const keyList = [];
+    const seen = new Set();
+    for (const e of entries) {
+        const id = e.date + '|' + e.period;
+        if (!seen.has(id)) {
+            seen.add(id);
+            keyList.push({date: e.date, period: e.period});
+        }
+    }
+
+    // header
+    let html = '<table class="attendance-table"><thead><tr><th>교사명</th>';
+    keyList.forEach(({date, period}) => {
+        let displayDate = date;
+        // if date matches yyyy-mm-dd convert to mm/dd, else leave as is
+        const m = String(date).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (m) displayDate = m[2] + '/' + m[3]; else if (/^\d+$/.test(date)) displayDate = date + '일차';
+        html += `<th>${displayDate}<br>${period}교시</th>`;
+    });
+    html += '<th>출석률</th></tr></thead><tbody>';
+
+    // rows
+    teachers.forEach(teacher => {
+        html += `<tr><td><strong>${teacher}</strong></td>`;
+        let totalPresent = 0;
+        let total = 0;
+        keyList.forEach(({date, period}) => {
+            const key = `day${date}_period${period}`;
+            const status = (attendanceData[key] || {})[teacher];
+            total++;
+            if (status === 'present') {
+                html += '<td class="status-present">출석</td>';
+                totalPresent++;
+            } else if (status === 'absent') {
+                html += '<td class="status-absent">결석</td>';
+            } else {
+                html += '<td>-</td>';
+            }
+        });
+        const rate = total > 0 ? Math.round((totalPresent / total) * 100) : 0;
+        html += `<td><strong>${rate}%</strong></td></tr>`;
+    });
+
+    html += '</tbody></table>';
+    table.innerHTML = html;
+}
+
+
+        function exportToExcel() {
+            const wb = XLSX.utils.book_new();
+            const data = [['교사명']];
+
+            // 1. 모든 출석 데이터 키 수집 및 정렬
+            const allKeys = Object.keys(attendanceData || {});
+            const entries = allKeys.map(k => {
+                const m = k.match(/^day(.+)_period(\d+)$/);
+                if (m) return {date: m[1], period: Number(m[2]), key: k};
+                return null;
+            }).filter(Boolean);
+
+            if (entries.length === 0) {
+                alert('엑셀로 다운로드할 출석 데이터가 없습니다.');
+                return;
+            }
+
+            // 날짜 및 교시 순서로 정렬
+            entries.sort((a,b) => {
+                if (a.date < b.date) return -1;
+                if (a.date > b.date) return 1;
+                return a.period - b.period;
+            });
+
+            // 고유한 날짜+교시 조합만 추출 (중복 방지)
+            const keyList = [];
+            const seen = new Set();
+            for (const e of entries) {
+                const id = e.date + '|' + e.period;
+                if (!seen.has(id)) {
+                    seen.add(id);
+                    keyList.push(e);
+                }
+            }
+
+            // 2. 헤더 생성 (날짜와 교시)
+            keyList.forEach(({date, period}) => {
+                let displayDate = date;
+                // 날짜 형식 변환 (YYYY-MM-DD -> MM/DD, 숫자만 있으면 '일차')
+                const m = String(date).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                if (m) displayDate = m[2] + '/' + m[3]; else if (/^\d+$/.test(date)) displayDate = date + '일차';
+
+                data[0].push(`${displayDate} ${period}교시`);
+            });
+            data[0].push('출석률');
+
+            // 3. 교사별 출석 데이터 행 생성
+            teachers.forEach(teacher => {
+                const row = [teacher];
+                let totalPresent = 0;
+                let total = 0;
+
+                keyList.forEach(({key}) => {
+                    const status = attendanceData[key]?.[teacher];
+                    total++;
+
+                    if (status === 'present') {
+                        row.push('출석');
+                        totalPresent++;
+                    } else if (status === 'absent') {
+                        row.push('결석');
+                    } else {
+                        row.push('-'); // 미체크
+                    }
+                });
+
+                // 출석률 계산
+                const rate = total > 0 ? Math.round((totalPresent / total) * 100) : 0;
+                row.push(`${rate}%`);
+                data.push(row);
+            });
+
+            // 4. 엑셀 파일 생성 및 다운로드
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            XLSX.utils.book_append_sheet(wb, ws, '출석현황');
+
+            const today = new Date().toISOString().split('T')[0].replace(/-/g, ''); // yyyymmdd 형식
+            XLSX.writeFile(wb, `연수출석현황_${today}.xlsx`);
+        }
+
+        function addTeacher() {
+            const input = document.getElementById('newTeacherName');
+            const name = input.value.trim();
+            
+            if (name && !teachers.includes(name)) {
+                teachers.push(name);
+                saveTeachers();
+                input.value = '';
+                updateTeacherList();
+                updateAttendance();
+                alert(`${name} 교사가 추가되었습니다.`);
+            } else if (teachers.includes(name)) {
+                alert('이미 존재하는 교사명입니다.');
+            }
+        }
+
+        function removeTeacher(name) {
+            if (confirm(`${name} 교사를 삭제하시겠습니까?`)) {
+                teachers = teachers.filter(t => t !== name);
+                saveTeachers();
+                updateTeacherList();
+                updateAttendance();
+            }
+        }
+
+        function updateTeacherList() {
+            const list = document.getElementById('teacherList');
+            list.innerHTML = '';
+            
+            teachers.forEach(teacher => {
+                const tag = document.createElement('div');
+                tag.className = 'teacher-tag';
+                tag.innerHTML = `
+                    <span>${teacher}</span>
+                    <button onclick="removeTeacher('${teacher}')">×</button>
+                `;
+                list.appendChild(tag);
+            });
+            
+            const editSelect = document.getElementById('editTeacherSelect');
+            editSelect.innerHTML = '<option value="">-- 교사를 선택하세요 --</option>';
+            teachers.forEach(teacher => {
+                const option = document.createElement('option');
+                option.value = teacher;
+                option.textContent = teacher;
+                editSelect.appendChild(option);
+            });
+        }
+
+        function editTeacher() {
+            const select = document.getElementById('editTeacherSelect');
+            const oldName = select.value;
+            const newName = document.getElementById('editTeacherName').value.trim();
+            
+            if (!oldName) {
+                alert('수정할 교사를 선택하세요.');
+                return;
+            }
+            
+            if (!newName) {
+                alert('새 이름을 입력하세요.');
+                return;
+            }
+            
+            if (teachers.includes(newName) && oldName !== newName) {
+                alert('이미 존재하는 교사명입니다.');
+                return;
+            }
+            
+            const index = teachers.indexOf(oldName);
+            if (index !== -1) {
+                teachers[index] = newName;
+                saveTeachers();
+                
+                Object.keys(attendanceData).forEach(key => {
+                    if (attendanceData[key][oldName]) {
+                        attendanceData[key][newName] = attendanceData[key][oldName];
+                        delete attendanceData[key][oldName];
+                    }
+                });
+                saveAttendance();
+                
+                document.getElementById('editTeacherName').value = '';
+                updateTeacherList();
+                updateAttendance();
+                alert(`${oldName}의 이름이 ${newName}(으)로 변경되었습니다.`);
+            }
+        }
+
+        function resetAllData() {
+            if (confirm('정말로 모든 출석 데이터를 초기화하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) {
+                attendanceData = {};
+                saveAttendance();
+                updateAttendance();
+                updateStatusTable();
+                alert('모든 출석 데이터가 초기화되었습니다.');
+            }
+        }
+
+        initializeData();
+        updateAttendance();
+    </script>
+</body>
+</html>
